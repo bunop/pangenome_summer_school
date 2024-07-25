@@ -37,21 +37,21 @@ GraphAligner has some different dependencies to earlier tools we've used, so we 
 Currently, `vg giraffe` is one of the best pangenome aligners, but the long read mode is not quite ready yet.
 If we are able to run `vg`, we can prepare the giraffe indices with
 
-```
+```bash
 vg autoindex -t 4 --workflow giraffe -g pangenome/25.pggb.gfa -r "HER"  -p pangenome/vg_index
 # this step is not necessary in most cases, but a strange filesystem feature that bottlenecks jobs on a typical high performance computer
-chmod 444 pangenome/vg_index.dist
+# chmod a+r pangenome/vg_index.dist
 ```
 
 We can extract the short reads from the original bam with
 
-```
-samtools collate -Ou data/OxO.Illumina.SR.bam | samtools fastq -N -o data/OxO.Illumina.fq.gz
+```bash
+samtools collate -Ou data/OxO.Illumina.25.bam | samtools fastq -N -o data/OxO.Illumina.fq.gz
 ```
 
 And then run the giraffe mapping for short read samples, with the output in GAF.
 
-```
+```bash
 vg giraffe -t 4 -Z pangenome/vg_index.giraffe.gbz -m pangenome/vg_index.min -d pangenome/vg_index.dist --named-coordinates -o gaf --interleaved -f data/OxO.Illumina.fq.gz > pangenome/sample.gaf
 ```
 
@@ -68,12 +68,12 @@ Check out some more discussion [here](https://github.com/vgteam/vg/issues/3996) 
 
 We can align the HiFi data used to create the Original Braunvieh haplotype back to the pangenome graph.
 
-```
+```bash
 # we can activate the env for GraphAligner
 mamba activate GraphAligner
 
 # run the alignment
-GraphAligner -g pangenome/bovines_with_P_lines.gfa  -f data/OxO.HiFi.25.fastq.gz -a pangenome/OxO.HiFi.25.gaf -x vg -t 4
+GraphAligner -g pangenome/bovines_with_P_lines.gfa  -f data/OxO.HiFi.25.fq.gz -a pangenome/OxO.HiFi.25.gaf -x vg -t 4
 ```
 
 GraphAligner can also align to de Bruijn graphs (more k-mer based than our sequence-based graphs), so the `-x vg` indicates we want to use preset parameters relevant for a sequence graph.
@@ -86,27 +86,27 @@ We can count the number of mismatches from the alignment records, typically enco
 
 From the bam files, we can print all the records, only keep the "NM" tag (`grep -oE "NM:i:\d+"`), only keep the actual number of mismatches (`cut -d':' -f 3`), and then sum these up (`awk '{++n;c+=$1} END {print c,n}'`).
 
-```
+```bash
 # we need samtools back, so reactivate your original environment (use the correct line for your name)
 
 mamba activate ognigenoma
 #OR
 mamba activate summerschool2
 
-samtools view data/OxO.HiFi.25.bam | grep -oE "NM:i:\d+" | cut -d':' -f 3 | awk '{++n;c+=$1} END {print "number of alignments: "n"\nnumber of mismatches: ",c}'
+samtools view data/OxO.HiFi.25.bam | grep -oE "NM:i:[0-9]+" | cut -d':' -f 3 | awk '{++n;c+=$1} END {print "number of alignments: "n"\nnumber of mismatches: ",c}'
 ```
 
 And then we will do the same thing for the graph alignment file
 from the gaf files
 
-```
-grep -oE "NM:i:\d+" pangenome/OxO.HiFi.25.gaf | cut -d':' -f 3 | awk '{++n;c+=$1} END {print "number of alignments: "n"\nnumber of mismatches: ",c}'
+```bash
+grep -oE "NM:i:[0-9]+" pangenome/OxO.HiFi.25.gaf | cut -d':' -f 3 | awk '{++n;c+=$1} END {print "number of alignments: "n"\nnumber of mismatches: ",c}'
 ```
 
 Some reads might align in many parts, so let's look for the top 10 reads with the most number of multiple alignments.
 
-```
-awk '{++R[$1]} END {for (r in R) {print r,R[r]}}' pangenome/OxO.HiFi.25.gaf | sort -k1,1nr | head
+```bash
+awk '{++R[$1]} END {for (r in R) {print R[r],r}}' pangenome/OxO.HiFi.25.gaf | sort -k1,1nr | head
 
 # or maybe a bit easier to read but should be identical output
 
@@ -123,6 +123,6 @@ We first sort by the 10th column for aligned length, so we can see longer matche
 The BED format required by Bandage is also a bit ugly and not well documented after the first 3 standard columns, but these appears to work.
 We should be able to load this in Bandage and see where the reads aligned!
 
-```
+```bash
 sort -k10,10nr pangenome/OxO.HiFi.25.gaf | awk -v OFS='\t' '$6~/>/ {n=1gsub(">","",$6); if (n==1) {print $6,$8,$9,$1,$10,"+",$8,$9,"150,150,0";next}} {n=gsub("<","",$6); if (n==1) {print $6,$8,$9,$1,$10,"-",$8,$9,"0,150,150"}}' > pangenome/OxO.HiFi.25.GA.bed
 ```

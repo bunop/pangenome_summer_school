@@ -279,10 +279,10 @@ Similarly, we can load this graph in bandage and attempt to visualise the pangen
 
 We can extract a subset of that graph using odgi (linux-only).
 
-```
+```bash
 ##LINUX ONLY
-odgi extract -i pangenome/25.pggb.og -t 2 -r "HER:30000000-31000000" -o /dev/stdout |\
-odgi view -t 2 -i - -g > pangenome/25.subgraph.gfa
+odgi extract -i pangenome/25.pggb.og -t 2 -r "HER#0#25:30000000-31000000" -o /dev/stdout |\
+  odgi view -t 2 -i - -g > pangenome/25.subgraph.gfa
 ```
 
 and then much more manageably visualise the subgraph for the region we are interested in.

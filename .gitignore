@@ -1,6 +1,5 @@
 *.DS_Store
 
-practicals
 !practicals/*.md
 !practicals/*.yaml
 

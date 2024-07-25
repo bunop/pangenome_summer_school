@@ -12,3 +12,11 @@ slides/img
 !slides/img/*.png
 !slides/img/*.svg
 
+data/
+assemblies/
+completeness/
+pangenome/
+*.sif
+*.gz
+*.tbi
+*.fa

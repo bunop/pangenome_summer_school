@@ -40,7 +40,7 @@ mamba install -c conda-forge -c bioconda vg vcflib vcfbub
 curl https://polybox.ethz.ch/index.php/s/rymYdwM8wxUfm1V/download > pangenome/bovines_with_P_lines.gfa
 
 ##LINUX ONLY
-vg deconstruct -p "HER" --path-traversals --ploidy 1 -t 2 pangenome/bovines_with_P_lines.gfa > pangenome/minigraph.vcf
+vg deconstruct -a -p "HER" --path-traversals --ploidy 1 -t 2 pangenome/bovines_with_P_lines.gfa > pangenome/minigraph.vcf
 vcfbub -l 0 -a 10000 --input pangenome/minigraph.vcf | vcfwave -I 1000 -t 4 > pangenome/minigraph.decom.vcf
 
 
@@ -58,7 +58,7 @@ The initial "A" is common to both, while the next base is really a SNP (C→T), 
 However, the genotyping gets messed up, those "missing" samples **should** have the SNP.
 All these tools are generally only semi-stable, so be careful!
 
->HER     211583  >17>19_1        ACATATATATATGTATATATGTATATATATGTATATGTGTATATATATATATATATATATATA A       60      .       AC=2;AF=0.400000;AN=5;AT=>17>18>19;NS=5;LV=0;ORIGIN=HER:211583;LEN=62;TYPE=del  GT      0       1       0       0       1  
+>HER     211583  >17>19_1        ACATATATATATGTATATATGTATATATATGTATATGTGTATATATATATATATATATATATA A       60      .       AC=2;AF=0.400000;AN=5;AT=>17>18>19;NS=5;LV=0;ORIGIN=HER:211583;LEN=62;TYPE=del  GT      0       1       0       0       1
 HER     211650  >17>19_2        C       T       60      . AC=2;AF=0.400000;AN=5;AT=>17>18>19;NS=5;LV=0;ORIGIN=HER:211583;LEN=1;TYPE=snp   GT      0       .       0       0       .
 
 

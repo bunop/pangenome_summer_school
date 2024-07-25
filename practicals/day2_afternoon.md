@@ -57,7 +57,7 @@ mkdir data
 curl https://polybox.ethz.ch/index.php/s/d641EnjNf0TWw5f/download > data/ARS-UCD1.2.fa.gz
 samtools faidx data/ARS-UCD1.2.fa.gz
 
-#Download the HiFi reads from Original Braunvieh cow with sample accession SAMEA7759028.
+# Download the HiFi reads from Original Braunvieh cow with sample accession SAMEA7759028.
 #These are only from chromosome 25 for simplicity.
 
 curl https://polybox.ethz.ch/index.php/s/C7fEDiQoDweJKFU/download > data/OxO.HiFi.25.fq.gz
@@ -126,7 +126,7 @@ If the assembly was perfect, we would expect 1 contig and a length of ~42 Mb.
 We can recalculate the N**G**50 using the expected genome length.
 Does this improve or worsen the N50?
 
-```
+```bash
 mkdir tools
 curl https://raw.githubusercontent.com/lh3/calN50/master/calN50.js > tools/calN50.js
 k8 tools/calN50.js assemblies/OxO.HiFi.25.asm_mdbg.fa
@@ -137,18 +137,19 @@ k8 tools/calN50.js -L 42350435 assemblies/OxO.HiFi.25.asm_mdbg.fa
 We can also calculate the conserved gene completeness based on the genes expected in this phylogeny.
 We'll manually install this tool due to unnecessary conflicts in conda.
 
-```
+```bash
 git clone https://github.com/huangnengCSU/compleasm.git
 (cd compleasm; pip install .) #temporarily moves into compleasm directory and installs
 
-compleasm download cetartiodactyla -L mb_download
-compleasm run -a assemblies/OxO.HiFi.25.asm_mdbg.fa -o completeness -l cetartiodactyla -L mb_download -t 4
+compleasm download cetartiodactyla -L data/compleasm/
+compleasm run -a assemblies/OxO.HiFi.25.asm_mdbg.fa -o completeness -l cetartiodactyla -L data/compleasm/ -t 4
 ```
 
 Remember, we only assembled chromosome 25, so we should expect to find only a small fraction of the USCOs (around 460 for a good cattle genome).
 
 We can also re-align our assembly to the reference and inspect in IGV
-```
+
+```bash
 minimap2 -a -x asm5 -t 4 data/ARS-UCD1.2.fa.gz assemblies/OxO.HiFi.25.asm_mdbg.fa | samtools sort - -@ 4 --write-index -o assemblies/OxO.HiFi.25.asm_mdbg.ARS-UCD1.2.bam
 ```
 
@@ -160,7 +161,7 @@ We can also scaffold the contigs, so they have the same direction and layout as 
 Note, this **is** based on the reference, and so we are at risk of losing out on biological differences as we force our assembly to look more like the reference.
 For high quality assemblies, this risk should be small.
 
-```
+```bash
 ragtag.py scaffold data/ARS-UCD1.2.fa.gz assemblies/OxO.HiFi.25.asm_mdbg.fa -o assemblies/scaffolding -t 4
 sed 's/_RagTag//g' assemblies/scaffolding/ragtag.scaffold.fasta > assemblies/OxO.HiFi.25.asm_mdbg.scaffolded.fa
 ```
@@ -176,7 +177,8 @@ It is often difficult to understand how these parameters shape the outcome...
 We can also run `hifiasm`, a more resource-intensive assembler but likely to produce better results.
 
 Let's build a hifiasm assembly and then we can repeat the quality assessment of the assembly.
-```
+
+```bash
 hifiasm -t 4 -o assemblies/OxO.HiFi.25.asm_hifiasm --primary data/OxO.HiFi.25.fq.gz
 gfatools gfa2fa assemblies/OxO.HiFi.25.asm_hifiasm.p_ctg.gfa > assemblies/OxO.HiFi.25.asm_hifiasm.fa
 ```
@@ -187,7 +189,7 @@ Now we have our assembly, we can gather some other publically available assembli
 These have been named to follow [panSN](https://github.com/pangenome/PanSN-spec), so look like `sample#haplotype#contig`.
 This allows multiple assemblies from the same chromosome to still be distinguished, as well as grouping samples with haplotype-resolved assemblies (e.g., `ZEB#1#15` and `ZEB#2#15` being the two haplotypes for chromosome 15 for a Zebu sample).
 
-```
+```bash
 mkdir pangenome
 curl https://polybox.ethz.ch/index.php/s/j0Fjt63F1mG2XkB/download > pangenome/OBV.fa.gz
 curl https://polybox.ethz.ch/index.php/s/mNyJqihPEdWPNow/download > pangenome/BSW.fa.gz
@@ -200,8 +202,7 @@ To get a quick overview, we can use minigraph to build a predominantly structura
 First, we also rename the reference to follow panSN-spec (using the Hereford breed as the sample name).
 We then run minigraph with the assemblies, starting with the reference and then in order of increasing in genomic distance.
 
-```
-
+```bash
 samtools faidx data/ARS-UCD1.2.fa.gz 25 | awk '$1~/^>/ {gsub(/>/,">HER#0#",$1)}1' | bgzip -@ 2 -c > pangenome/HER.fa.gz
 minigraph -cxggs -L 50 -j 0.01 pangenome/{HER,BSW,OBV,SIM,NEL,WIS}.fa.gz > pangenome/bovines.gfa
 ```
@@ -212,13 +213,15 @@ In particular, pay attention to the log output and consider the following questi
  - Since minigraph is quick to run, what happens if change around the *order* of assemblies?
 
 We can explore some other properties of this graph using
-```
+
+```bash
 gfatools stat pangenome/bovines.gfa
 gfatools bubble pangenome/bovines.gfa
 ```
 
 We can also retrace the paths each assembly should take through the graph, again with minigraph
-```
+
+```bash
 for i in HER BSW OBV SIM NEL WIS
 do
   minigraph -cxasm --call -t 4 pangenome/bovines.gfa pangenome/${i}.fa.gz > pangenome/${i}.bed
@@ -226,17 +229,19 @@ done
 ```
 
 We can also confirm that "non-reference" sequence can be lost with minigraph, by checking the starting coordinate of our assemblies compared to the initial coordinates of the reference.
-```
+
+```bash
 curl https://raw.githubusercontent.com/lh3/minigraph/master/misc/mgutils.js > tools/mgutils.js
 paste pangenome/{HER,BSW,OBV,SIM,NEL,WIS}.bed | k8 tools/mgutils.js merge - > pangenome/bovines.mg.variants
 ```
 
 We can also approximately add P-lines to the minigraph gfa using a modified version, which will enable more general use of the file.
 
-```
+```bash
 curl https://raw.githubusercontent.com/ASLeonard/minigraph/master/misc/mgutils.js > tools/mgutils_patched.js
 { cat pangenome/bovines.gfa ; paste pangenome/{HER,BSW,OBV,SIM,NEL,WIS}.bed | k8 tools/mgutils_patched.js path <(echo -e "HER\nBSW\nOBV\nSIM\nNEL\nWIS") - ; } > pangenome/bovines_with_P_lines.gfa
 ```
+
 ---
 
 Since this graph is not too complicated, it should be relatively easy to load and explore in bandage.
@@ -255,12 +260,15 @@ Now we can also build a more comprehensive pangenome, using `pggb`.
 There are several tools required to run `pggb` (`wfmash`, `seqwish`, `smoothxg`, `odgi`, `GFAffix`), and so can be challenging to install without running through singularity.
 These steps are also more compute-intensive, and so here we can just use a pre-built graph generated from the command
 
-```
+```bash
 ##LINUX ONLY
 mkdir pangenome/pggb
 cat pangenome/{HER,BSW,OBV,SIM,NEL,WIS}.fa.gz > pangenome/25.fa.gz
 samtools faidx pangenome/25.fa.gz
 
+# singularity pull docker://ghcr.io/pangenome/pggb:202407121557360d849d
+# ln -s pggb_202407121557360d849d.sif pggb_latest.sif
+# singularity run pggb_latest.sif pggb -i pangenome/25.fa.gz -o pangenome/pggb -t 4 -s 50k -p 97
 pggb -i pangenome/25.fa.gz -o pangenome/pggb -t 4 -s 50k -p 97
 cp pangenome/pggb/*smooth.final.gfa pangenome/25.pggb.gfa
 cp pangenome/pggb/*smooth.final.og pangenome/25.pggb.og

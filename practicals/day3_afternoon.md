@@ -28,7 +28,7 @@ We can do this through `vg deconstruct`, going from a pangenome _.gfa_ (with rel
 For this process, we need to specify **which** set of paths we consider to be the reference, as VCF requires a linear coordinate system.
 We also want to specify the ploidy as 1, because even though we mostly work on diploid samples, each assembly represents only 1 copy of a genome.
 
-```
+```bash
 # we may need to install some extra tools first
 # however, vg is only available on linux
 # can use conda instead of mamba if you prefer
@@ -64,7 +64,7 @@ HER     211650  >17>19_2        C       T       60      . AC=2;AF=0.400000;AN=5;
 
 For the moment, let's only consider structural variants, so we want to filter out small variants.
 
-```
+```bash
 bcftools view -i 'abs(ILEN)>=50' -o pangenome/minigraph.SV.vcf pangenome/minigraph.decom.vcf
 ```
 
@@ -90,7 +90,7 @@ Is it a simple mistake or does it look like an issue with our graph?
 We can compare against a more conventional approach, which we will take as the "truth" (although it has its own weaknesses).
 We'll call SVs with sniffle2 using both the HiFi and ONT reads from the same individual.
 
-```
+```bash
 sniffles --input data/OxO.HiFi.25.bam --vcf OxO.HiFi.sniffles.vcf --reference data/ARS-UCD1.2.fa.gz
 sniffles --input data/OxO.ONT.25.bam --vcf OxO.ONT.sniffles.vcf --reference data/ARS-UCD1.2.fa.gz
 ```
@@ -99,13 +99,13 @@ Now we can check how many of the SVs we found through the graph and through the 
 We can also play around with parameters to determine how strict we want to be when discussing "the same" SV.
 We'll use jasmine for this
 
-```
+```bash
 jasmine --comma_filelist file_list=pangenome/minigraph.SV.vcf,OxO.HiFi.sniffles.vcf,OxO.ONT.sniffles.vcf threads=1 out_file=pangenome/SV_concordance.vcf genome_file=data/ARS-UCD1.2.fa.gz --pre_normalize --ignore_strand --allow_intrasample --normalize_type max_dist=50 max_dist_linear=.5 min_seq_id=0.5
 ```
 
 We can then calculate the concordance with (you may want `grep -oE "SUPP_VEC=\d+"` instead on mac)
 
-```
+```bash
 grep -oP "SUPP_VEC=\K\d+" pangenome/SV_concordance.vcf | sort | uniq -c > pangenome/SV_concordance.csv
 ```
 
@@ -128,7 +128,8 @@ def parser(fname, names):
     return memberships, data
 
 upsetplot.plot(upsetplot.from_memberships(*parser('pangenome/SV_concordance.csv',['graph','HiFi','ONT'])))
-plt.show()
+# plt.show()
+plt.savefig('pangenome/SV_concordance.png')
 ```
 
 We can experiment with different SV merging "strictness", requiring more/less overlap of SVs, more/less sequence identity, etc.
@@ -147,13 +148,13 @@ Note, this method only compares the REF/ALT status of a variant, without telling
 
 We can do something similar for the small variants, again filtering the graph output
 
-```
-bcftools view -v snps --write-index=tbi -o graph.SNPs.vcf.gz graph.vcf
+```bash
+bcftools view -v snps --write-index -o graph.SNPs.vcf.gz pangenome/minigraph.decom.vcf
 ```
 
 and comparing against a pre-made VCF of DeepVariant SNP calls using bcftools
 
-```
+```bash
 bcftools isec -n +1 graph.SNPs.vcf.gz DV.SNPs.vcf.gz | awk '{++c[$5]} END {for (k in c) {print k,c[k]}}'
 ```
 And again we expect as high overlap as possible.

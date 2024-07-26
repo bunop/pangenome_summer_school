@@ -17,5 +17,7 @@ completeness/
 pangenome/
 *.sif
 *.gz
+*.vcf
 *.tbi
+*.csi
 *.fa

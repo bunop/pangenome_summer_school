@@ -15,9 +15,11 @@ data/
 assemblies/
 completeness/
 pangenome/
+pangenome_subgraphs/
 *.sif
 *.gz
 *.vcf
 *.tbi
 *.csi
 *.fa
+*.bed

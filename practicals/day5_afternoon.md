@@ -21,7 +21,7 @@ Tools
 
 To start, we want to get the ARS-UCD1.2 annotation in gff format, giving us the location of genes.
 
-```
+```bash
 curl https://polybox.ethz.ch/index.php/s/gnReyfSopENjpxP/download > data/ARS-UCD1.2.exons.bed
 ```
 
@@ -29,7 +29,7 @@ curl https://polybox.ethz.ch/index.php/s/gnReyfSopENjpxP/download > data/ARS-UCD
 
 We will then test for intersections between the annotation and pangenome "bubbles" (indicating some larger level of variation) from the minigraph gfa.
 
-```
+```bash
 gfatools bubble pangenome/bovines_with_P_lines.gfa | cut -f -3,12 | sed 's/HER#0#//' > pangenome/minigraph.bubbles.bed
 bedtools intersect -a data/ARS-UCD1.2.exons.bed -b pangenome/minigraph.bubbles.bed > pangenome/minigraph_SV_overlaps.bed
 ```
@@ -41,19 +41,19 @@ We'll start by subsetting the VCF using `bcftools view` with the `-s <sample nam
 
 For SVs private to Wisent
 
-```
+```bash
 bedtools intersect -a data/ARS-UCD1.2.exons.bed -b <(bcftools view -s WIS -x pangenome/minigraph.SV.vcf | sed 's/^HER/25/') > Wisent_specific_genes.bed
 ```
 
 or for ones segregating in Swiss breeds
 
-```
+```bash
 bedtools intersect -a data/ARS-UCD1.2.exons.bed -b <(bcftools view -s OBV,SIM,BSW -x pangenome/minigraph.SV.vcf | sed 's/^HER/25/') > Swiss_specific_genes.bed
 ```
 
 We can also try and convert the annotation (via BED) into the pangenome coordinates, and then load that into bandage so we can visualise the events better (requires BandageNG).
 
-```
+```bash
 curl https://raw.githubusercontent.com/AnimalGenomicsETH/pangenome_KIT/main/scripts/translate_bed_to_graph.py > tools/translate_bed_to_graph.py
 python tools/translate_bed_to_graph.py pangenome/bovines.gfa data/ARS-UCD1.2.exons.bed > pangenome/ARS-UCD1.2.exons.graph.bed
 ```
@@ -63,7 +63,7 @@ python tools/translate_bed_to_graph.py pangenome/bovines.gfa data/ARS-UCD1.2.exo
 Let's see if we can find any interesting gene-SV regions in Bandage!
 We could search again for complex regions as we did before and inspect those regions for genes.
 
-```
+```bash
 gfatools bubble pangenome/bovines_with_P_lines.gfa | sort -k4,4nr | head
 ```
 
@@ -119,14 +119,14 @@ We can investigate those nodes in Bandage and see if the regions look interestin
 
 You can download the pggb graph here if you didn't make your own.
 
-```
+```bash
 curl https://polybox.ethz.ch/index.php/s/dOPVst0FFGlrixa/download > pangenome/25.pggb.gfa.gz
 unzip pangenome/25.pggb.gfa.gz
 ```
 
 We can split the graph up into small chunks (say 1000 Kb) using `odgi extract`, and the find the [Jaccard similarity score](https://en.wikipedia.org/wiki/Jaccard_index) between each pair of assemblies within this chunk.
 
-```
+```bash
 bedtools makewindows -g <(awk '$1~/HER/' pangenome/25.fa.gz.fai) -w 1000000 > pangenome/1000Kb.windows.bed
 
 mkdir pangenome_subgraphs
@@ -159,9 +159,10 @@ We want to gather the node-level coverage per sample after aligning with `vg gir
 We have to install rust (a programming language) and compile `gafpack`.
 If you are using the docker image, this should already be available
 
-```
+```bash
 mamba create -n rust -c conda-forge rust
 
+conda activate rust
 git clone https://github.com/ekg/gafpack.git
 cd gafpack
 cargo build --release
@@ -176,10 +177,18 @@ ls $PWD/gafpack/target/release/gafpack
 
 We can then calculate the coverage of short read sequencing over the pangenome nodes.
 
-```
+```bash
 # if you aligned to the pggb graph or renamed the file, be sure to replace these values
-
+# gafpack can't deal with string node names like the names we found in bovines_with_P_lines.gfa
+# the solution could be use sed to strip out the `S` prefix from the node name
 gafpack -g pangenome/bovines_with_P_lines.gfa -a pangenome/sample.gaf -l -c | awk -v S=$S '!/#/ {print S,$1,$2}' > pangenome/summed_coverage.txt
+
+# same command as before but using the pggb graph
+# gafpack was modified to deal with len < target_start:
+# if len < target_start {
+#     println!("Warning: len is less than target_start");
+# }
+gafpack -g pangenome/25.pggb.gfa -a pangenome/sample.gaf -l -c | awk -v S=$S '!/#/ {print S,$1,$2}' > pangenome/summed_coverage.txt
 
 ```
 
